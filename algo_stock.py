@@ -16,7 +16,7 @@ class login:
 class XAQueryHandler_T1102:
     query_state = 0
     
-    def OnReciveData(self,code):
+    def OnReceiveData(self,code):
         XAQueryHandler_T1102.query_state = 1
         
 
@@ -29,17 +29,31 @@ id = pw[0]
 pswd = pw[1]
 cert_pswd = pw[2] 
 
-initXASession = win32com.client.DispatchWithEvents("XA_Session.XASession",login)
-initXASession.ConnectServer("demo.ebestsec.co.kr",20001)
-initXASession.Login(id,pswd,cert_pswd,0,0)
+XASession = win32com.client.DispatchWithEvents("XA_Session.XASession",login)
+XASession.ConnectServer("demo.ebestsec.co.kr",20001)#demo trade system
+#XASession.ConnectServer("hts.ebestsec.co.kr",20001)#real trade system
+XASession.Login(id,pswd,cert_pswd,0,0)
 
 while login.login_state == 0:
     pythoncom.PumpWaitingMessages()
     
-account_num = initXASession.GetAccountListCount()
+account_num = XASession.GetAccountListCount()
 print("계좌 수:"+str(account_num))
 
 for i in range(account_num):
-    account = initXASession.GetAccountList(i)
+    account = XASession.GetAccountList(i)
     print("계좌정보:"+account)
+
+XAQuery_T1102 = win32com.client.DispatchWithEvents("XA_DataSet.XAQuery",XAQueryHandler_T1102)
+XAQuery_T1102.ResFileName = "C:/eBEST/xingAPI/Res/t1102.res"
+XAQuery_T1102.SetFieldData("t1102InBlock","shcode",0,"000040")
+XAQuery_T1102.Request(0)
+
+while XAQueryHandler_T1102.query_state == 0:
+    pythoncom.PumpWaitingMessages()
+
+
+stock_name = XAQuery_T1102.GetFieldData("t1102OutBlock","hname",0)
+price = XAQuery_T1102.GetFieldData("t1102OutBlock","price",0)
+print(stock_name+"의 현재가:"+str(price))
 

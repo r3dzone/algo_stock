@@ -2,7 +2,6 @@
 import win32com.client
 import pythoncom
 
-
 class login: #로그인
     login_state = 0
     
@@ -37,8 +36,8 @@ cert_pswd = pw[2]
 account_pswd = pw[3] 
 
 XASession = win32com.client.DispatchWithEvents("XA_Session.XASession",login)
-XASession.ConnectServer("127.0.0.1",20001)#XingAce
-#XASession.ConnectServer("demo.ebestsec.co.kr",20001)#demo trade system
+#XASession.ConnectServer("127.0.0.1",20001)#XingAce
+XASession.ConnectServer("demo.ebestsec.co.kr",20001)#demo trade system
 #XASession.ConnectServer("hts.ebestsec.co.kr",20001)#real trade system
 XASession.Login(id,pswd,cert_pswd,0,0)
 
@@ -64,7 +63,7 @@ while XAQueryHandler_T1102.query_state == 0:
 stock_name = XAQuery_T1102.GetFieldData("t1102OutBlock","hname",0)
 price = XAQuery_T1102.GetFieldData("t1102OutBlock","price",0)
 print(stock_name+"의 현재가:"+price)
-
+'''
 XATrade = win32com.client.DispatchWithEvents("XA_DataSet.XAQuery",XATradeHandler_trade)
 XATrade.ResFileName = "C:/eBEST/xingAPI/Res/CSPAT00600.res"
 XATrade.SetFieldData("CSPAT00600InBlock1","AcntNo",0,account)
@@ -84,3 +83,4 @@ while XATrade.query_state == 0:
     
 ord_num = XATrade.GetFieldData("CSPAT00600OutBlock2","OrdNo",0)
 print("현물 매수주문 요청:주문번호"+str(ord_num))
+'''

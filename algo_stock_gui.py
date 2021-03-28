@@ -20,19 +20,28 @@ class XASessionHandler:
             print("login failure code:" + code + " msg:" + msg)
 
 class XAQueryHandler:  # 계좌정보 조회
-    flag = 0
+    def __init__(self):
+        self.XAQuery = None #XAQuery
+        self.flag = False
+
+    def get_field(self,BlockName,FieldName,Occurs):
+        self.BlockName = BlockName
+        self.FieldName = FieldName
+        self.Occurs = Occurs
+
+    def connect(self,tmp):
+        self.XAQuery = tmp
+
     def OnReceiveData(self, code):
         print("code"+code)
-        flag = 1
-        print("데이터 수신")
-        test = XAQuery()
-        test.query_print()
+        print("수신성공")
+        self.flag = True
+        print(self.BlockName+ self.FieldName)
+        self.XAQuery.get_field_data(self.BlockName,self.FieldName,self.Occurs)
 
     def OnReceiveMessage(self, code,a,b):
-        print(code)
-        print(a)
-        print(b)
-
+        return code
+        #print("쿼리 수신")
 
 class XASession:
     def __init__(self):
@@ -55,19 +64,20 @@ class XASession:
 class XAQuery:
     def __init__(self):
         self.query = win32com.client.DispatchWithEvents("XA_DataSet.XAQuery", XAQueryHandler)
+        self.query.connect(self)
+        self.data = []
 
-    def query_example(self):
-        print("쿼리 실행전")
-        self.query.ResFileName = "C:/eBEST/xingAPI/Res/t1102.res"
-        self.query.SetFieldData("t1102InBlock", "shcode", 0, "000040")
+    def set_query(self,res_name,BlockName,FieldName,Occurs,Data): #TR이름, TR의 블록명 , 블록의 필드명, 반복여부,데이터
+        base_addr = "C:/eBEST/xingAPI/Res/"
+        self.query.ResFileName = base_addr+res_name+".res"
+        self.query.SetFieldData(BlockName,FieldName,Occurs,Data)
+
+    def request(self):
         self.query.Request(0)
-        print("리퀘스트 보냄")
 
-    def query_print(self):
-        print("쿼리 프린트 시점")
-        stock_name = self.query.GetFieldData("t1102OutBlock", "hname", 0)
-        price = self.query.GetFieldData("t1102OutBlock", "price", 0)
-        return stock_name + "의 현재가:" + price
+    def get_field_data(self,BlockName,FieldName,Occurs): #블록명 , 블록의 필드명, 반복여부
+        self.data.append(self.query.GetFieldData(BlockName,FieldName,Occurs))
+        print(self.query.GetFieldData(BlockName,FieldName,Occurs))
 
 # 메인 윈도우
 class MyWindow(QMainWindow):
@@ -81,17 +91,26 @@ class MyWindow(QMainWindow):
         self.btn.move(10,10)
         self.btn.clicked.connect(self.get_account)
 
-        self.query1 = XAQuery()
         self.btn2 = QPushButton("가격 조회",self)
         self.btn2.move(200,10)
         self.btn2.clicked.connect(self.get_price)
-        
+
     def get_account(self):
         accounts = self.session.account_find()
         print(accounts)
 
     def get_price(self):
-        print(self.query1.query_example())
+        self.query = XAQuery()
+        self.query.set_query("t1102","t1102InBlock","shcode", 0, "000040")
+        #"t1102OutBlock", "price", 0
+        self.query.request()
+        print("flag = "+str(self.query.query.flag))
+        #self.query.query.get_field("t1102OutBlock", "hname", 0)
+        self.query.query.get_field("t1102OutBlock", "price", 0)
+        #print(query.data.len)
+        print("데이터 출력")
+        #print(self.query.data)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

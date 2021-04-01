@@ -1,13 +1,14 @@
 from PyQt5.QtWidgets import *
 import sys
 import win32com.client
+import pythoncom
 
 pw_file = open('C:/Users/R3dzone/Desktop/stock_passwd.txt', 'r')
 pw = []
 for i in pw_file.readlines():
     pw.append(i.rstrip("\n"))
 
-id = pw[0] 
+id = pw[0]
 pswd = pw[1]
 cert_pswd = pw[2]
 account_pswd = pw[3]
@@ -24,24 +25,11 @@ class XAQueryHandler:  # 계좌정보 조회
         self.XAQuery = None #XAQuery
         self.flag = False
 
-    def get_field(self,BlockName,FieldName,Occurs):
-        self.BlockName = BlockName
-        self.FieldName = FieldName
-        self.Occurs = Occurs
-
     def connect(self,tmp):
         self.XAQuery = tmp
 
     def OnReceiveData(self, code):
-        print("code"+code)
-        print("수신성공")
         self.flag = True
-        print(self.BlockName+ self.FieldName)
-        self.XAQuery.get_field_data(self.BlockName,self.FieldName,self.Occurs)
-
-    def OnReceiveMessage(self, code,a,b):
-        return code
-        #print("쿼리 수신")
 
 class XASession:
     def __init__(self):
@@ -65,7 +53,7 @@ class XAQuery:
     def __init__(self):
         self.query = win32com.client.DispatchWithEvents("XA_DataSet.XAQuery", XAQueryHandler)
         self.query.connect(self)
-        self.data = []
+        self.received = False
 
     def set_query(self,res_name,BlockName,FieldName,Occurs,Data): #TR이름, TR의 블록명 , 블록의 필드명, 반복여부,데이터
         base_addr = "C:/eBEST/xingAPI/Res/"
@@ -74,10 +62,11 @@ class XAQuery:
 
     def request(self):
         self.query.Request(0)
+        while self.query.flag == False:
+            pythoncom.PumpWaitingMessages()
 
     def get_field_data(self,BlockName,FieldName,Occurs): #블록명 , 블록의 필드명, 반복여부
-        self.data.append(self.query.GetFieldData(BlockName,FieldName,Occurs))
-        print(self.query.GetFieldData(BlockName,FieldName,Occurs))
+        return self.query.GetFieldData(BlockName,FieldName,Occurs)
 
 # 메인 윈도우
 class MyWindow(QMainWindow):
@@ -102,20 +91,12 @@ class MyWindow(QMainWindow):
     def get_price(self):
         self.query = XAQuery()
         self.query.set_query("t1102","t1102InBlock","shcode", 0, "000040")
-        #"t1102OutBlock", "price", 0
         self.query.request()
-        print("flag = "+str(self.query.query.flag))
-        #self.query.query.get_field("t1102OutBlock", "hname", 0)
-        self.query.query.get_field("t1102OutBlock", "price", 0)
-        #print(query.data.len)
-        print("데이터 출력")
-        #print(self.query.data)
-
+        print(self.query.get_field_data("t1102OutBlock", "hname", 0))
+        print(self.query.get_field_data("t1102OutBlock", "price", 0))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MyWindow()
     window.show()
     app.exec_()
-
-

@@ -34,7 +34,7 @@ class XAQueryHandler:  # 계좌정보 조회
 class XASession:
     def __init__(self):
         self.session = win32com.client.DispatchWithEvents("XA_Session.XASession", XASessionHandler)
-        self.session.ConnectServer("demo.ebestsec.co.kr", 20001)
+        self.session.ConnectServer("127.0.0.1", 20001)
 
     def login(self, id, pswd, cert):
         self.session.Login(id, pswd, cert, 0, False)
@@ -53,15 +53,19 @@ class XAQuery:
     def __init__(self):
         self.query = win32com.client.DispatchWithEvents("XA_DataSet.XAQuery", XAQueryHandler)
         self.query.connect(self)
-        self.received = False
 
-    def set_query(self,res_name,BlockName,FieldName,Occurs,Data): #TR이름, TR의 블록명 , 블록의 필드명, 반복여부,데이터
+    def set_res(self,res_name):
         base_addr = "C:/eBEST/xingAPI/Res/"
         self.query.ResFileName = base_addr+res_name+".res"
+
+    def set_query(self,BlockName,FieldName,Occurs,Data): #TR이름, TR의 블록명 , 블록의 필드명, 반복여부,데이터
         self.query.SetFieldData(BlockName,FieldName,Occurs,Data)
 
     def request(self):
-        self.query.Request(0)
+        error_code = self.query.Request(0)
+        if error_code < 0:
+            print(self.query.GetErrorMessage(error_code))
+
         while self.query.flag == False:
             pythoncom.PumpWaitingMessages()
 
@@ -72,7 +76,6 @@ class XAQuery:
 class MyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.session = XASession()
         self.session.login(id,pswd,cert_pswd)
 
@@ -84,16 +87,42 @@ class MyWindow(QMainWindow):
         self.btn2.move(200,10)
         self.btn2.clicked.connect(self.get_price)
 
+        self.btn3 = QPushButton("매수",self)
+        self.btn3.move(10,50)
+        self.btn3.clicked.connect(self.buy)
+
     def get_account(self):
-        accounts = self.session.account_find()
-        print(accounts)
+        global account_addr
+        account_addr = self.session.account_find()[0]
+        print(account_addr)
 
     def get_price(self):
         self.query = XAQuery()
-        self.query.set_query("t1102","t1102InBlock","shcode", 0, "000040")
+        self.query.set_res("t1102")
+        self.query.set_query("t1102InBlock","shcode", 0, "000040")
         self.query.request()
-        print(self.query.get_field_data("t1102OutBlock", "hname", 0))
-        print(self.query.get_field_data("t1102OutBlock", "price", 0))
+        hname = self.query.get_field_data("t1102OutBlock", "hname", 0)
+        global price
+        price = self.query.get_field_data("t1102OutBlock", "price", 0)
+        print(hname+"의 현재가격: "+price)
+
+    def buy(self):
+        XATrade = XAQuery()
+        XATrade.set_res("CSPAT00600")
+        XATrade.set_query("CSPAT00600InBlock1", "AcntNo", 0, account_addr)
+        XATrade.set_query("CSPAT00600InBlock1", "InptPwd", 0, account_pswd)
+        XATrade.set_query("CSPAT00600InBlock1", "IsuNo", 0, "000040") #주식번호
+        XATrade.set_query("CSPAT00600InBlock1", "OrdQty", 0, 1)  # 거래량
+        XATrade.set_query("CSPAT00600InBlock1", "OrdPrc", 0, int(price) - 100) #거래가격
+        XATrade.set_query("CSPAT00600InBlock1", "BnsTpCode", 0, "2")  # 거래타입 1:매도 2:매수
+        XATrade.set_query("CSPAT00600InBlock1", "OrdprcPtnCode", 0, "00")
+        XATrade.set_query("CSPAT00600InBlock1", "MgntrnCode", 0, "000")
+        XATrade.set_query("CSPAT00600InBlock1", "LoanDt", 0, "")
+        XATrade.set_query("CSPAT00600InBlock1", "OrdCndiTpCode", 0, "")
+        XATrade.request()
+
+        ord_num = XATrade.get_field_data("CSPAT00600OutBlock2", "OrdNo", 0)
+        print("현물 매수주문 요청:주문번호" + str(ord_num))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
